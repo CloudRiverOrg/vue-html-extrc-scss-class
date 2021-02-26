@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+	<style>
+		#mIn {
+			width: 600px;
+			height: 300px;
+			vertical-align: middle;
+		}
+		#btn {
+			width: 100px;
+			height: 60px;
+			vertical-align: middle;
+		}
+		#output {
+			font-size: 14px;
+			line-height: 1.5;
+			background-color: #dcff93;
+			border: 1px solid #b7d28d;
+			border-radius: 2px;
+		}
+	</style>
+</head>
+<body>
+	
+	<textarea id="mIn"></textarea>
+	<button id="btn" class="btn">dd</button>
+	<div>
+		<pre id="output">
+	</div>
+	
+	</pre>
+
+	<script>
+		/**
+		 * @param {string} str
+		 */
+		function extract (str) {
+			// let reg = /(?<=<)[a-zA-Z]+(?=\s[\s\S]*\/>)/g
+			// let comNames = str.match(reg);
+
+			let rootEl = document.createElement('div');
+			rootEl.innerHTML = str;
+			const resultTree = [];
+			extractClass(rootEl, resultTree);
+			console.log(resultTree);
+			return resultTree;
+		}
+		/**
+		 * @param {HTMLDivElement} nodes
+		 * @param {string} store
+		 */
+		function getClassKey (el) {
+			return [...el.classList].join('|');
+		}
+
+		/**
+		 * @param {HTMLDivElement} nodes
+		 * @param {Array} store
+		 */
+		function extractClass (node, store = []) {
+			const children = [...node.children];
+			if (!children.length) return;
+			children.forEach(v => {
+				let classKey = getClassKey(v);
+				// 没有 class 的就用父级的
+				let nextStore = store
+				if (classKey) {
+					let has = store.find(v => v.id === classKey);
+					// 发现新的class
+					if (!has) {
+						has = {
+							id: classKey,
+							child: []
+						}
+						store.push(has)
+						nextStore = has.child;
+					// 已经存在同级下同名的 就用同名的
+					} else {
+						nextStore = has.child;
+					}
+				}
+				extractClass(v, nextStore);
+			})
+		}
+
+		function concatString (list, indent = 2) {
+			let space = ' '.repeat(indent);
+			let strlist = list.map((v, i) => {
+				const lastEnter = i === list.length-1 ? '' : '\n';
+				if (v.child.length) {
+					return space + '.' + v.id + '{\n' +
+							concatString(v.child, indent + 2) + '\n' +
+							space + '}' + lastEnter
+				}
+				return space + `.${v.id} {}${lastEnter}`
+			})
+			return strlist.join('');
+		}
+		function dd () {
+			let input = document.querySelector('#mIn');
+			let output = document.querySelector('#output');
+			let res = extract(`
+				<div :id="reportId" v-loading="loading" class="evaluation-report">
+					<div
+					:class="{
+						'no-print': !canPrint
+					}">
+					<ReportHead />
+					<div class="nav" v-if="!isPrintMode">
+						<ul class="nav-ul">
+						<li
+							v-for="(v, i) in comList"
+							class="nav-item"
+							:key="v.id"
+							@click="swith(i)"
+							:class="{active: currentComIndex===i}">{{v.name}}</li>
+						</ul>
+						<span class="line" :style="naveLineStyle"></span>
+					</div>
+					<div class="content-wrap" :class="{ isPrintMode }">
+						<div class="title"> 成绩分析 <span /> </div>
+						<ReportScope v-if="isPrintMode || currentComIndex === 0" ></ReportScope>
+
+						<div class="title"> 小题详细分析 <span /> </div>
+						<ReportChildExeDetail v-if="isPrintMode || currentComIndex === 1" class="re-com" :conditions="{}"></ReportChildExeDetail>
+
+						<div class="title"> 题组分析 <span /> </div>
+						<ReportExeGroup v-if="isPrintMode || currentComIndex === 2" class="re-com" :conditions="{}" ></ReportExeGroup>
+
+						<div class="title"> 知识点分析 <span /> </div>
+						<ReportKnowledge v-if="isPrintMode || currentComIndex === 3" ></ReportKnowledge>
+
+						<div class="title"> 能力点分析 <span /> </div>
+						<ReportCapacity v-if="isPrintMode || currentComIndex === 4" ></ReportCapacity>
+					</div>
+					<div class="footer">
+						<div class="line"></div>
+						<!-- <span class="logo"></span> -->
+						<img src="~@/assets/images/report-only-logo.png" class="logo" width="357px">
+					</div>
+					</div>
+					<font v-if="!canPrint" color="red" class="only-print" size="50">
+					对不起，您没有打印权限
+					</font>
+				</div>
+			`);
+			output.innerHTML = concatString(res);
+		}
+		window.onload = () => {
+			let btn = document.querySelector('#btn');
+			btn.onclick = dd;
+		}
+	</script>
+</body>
+</html>	
